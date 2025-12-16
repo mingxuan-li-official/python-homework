@@ -1,0 +1,15 @@
+# 图书管理系统依赖包
+
+# MySQL数据库连接器
+# 使用pymysql替代mysql-connector-python，更轻量且性能更好
+PyMySQL>=1.0.0
+requests>=2.31.0
+
+matplotlib>=3.5.0
+
+# 如果需要更安全的密码加密，可以安装：
+# bcrypt>=4.0.0
+
+# 如果需要程序打包，可以安装：
+# pyinstaller>=5.0.0
+

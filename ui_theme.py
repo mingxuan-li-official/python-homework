@@ -178,4 +178,51 @@ def create_rounded_button(parent, text="", command=None, bg="#5FB0FF", fg="white
     # 初始绘制
     _draw_button()
     
+    # 保存原始命令，便于 enable/disable
+    button._orig_command = button._command
+
+    def set_text(new_text):
+        button._text = new_text
+        _draw_button()
+
+    def set_enabled(enabled: bool):
+        if enabled:
+            button._command = button._orig_command
+        else:
+            button._command = None
+        _draw_button()
+
+    # 兼容 tkinter 小部件的 config(text=..., state=...)
+    _orig_config = button.config
+    _orig_configure = button.configure
+
+    def config_proxy(**kwargs):
+        # 处理 text 与 state 两个常用自定义选项
+        if 'text' in kwargs:
+            text_val = kwargs.pop('text')
+            set_text(text_val)
+        if 'state' in kwargs:
+            state_val = kwargs.pop('state')
+            if state_val in (tk.DISABLED, 'disabled'):
+                set_enabled(False)
+            else:
+                set_enabled(True)
+        # 其余参数回退给原生 Canvas.config（如 cursor 等）
+        if kwargs:
+            try:
+                _orig_config(**kwargs)
+            except Exception:
+                # 兜底：如果原生 config 不支持某些参数，忽略之
+                pass
+
+    # 覆盖 config 与 configure，使外部调用像普通 Button 一样工作
+    button.config = config_proxy
+    button.configure = config_proxy
+
+    # 暴露便捷方法
+    button.set_text = set_text
+    button.set_enabled = set_enabled
+    button.enable = lambda: set_enabled(True)
+    button.disable = lambda: set_enabled(False)
+
     return button

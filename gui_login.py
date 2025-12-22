@@ -12,6 +12,7 @@ from ui_theme import (
     TEXT_PRIMARY,
     TEXT_SECONDARY,
     DANGER_COLOR,
+    create_rounded_button,
 )
 
 class LoginWindow:
@@ -147,19 +148,16 @@ class LoginWindow:
         )
         self.status_label.pack(side=tk.LEFT)
 
-        connect_btn = tk.Button(
+        connect_btn = create_rounded_button(
             status_row,
             text="连接服务器",
             command=self.connect_server,
             font=("微软雅黑", 9),
             bg=SUCCESS_COLOR,
             fg="white",
-            bd=0,
             padx=14,
             pady=4,
-            activebackground="#43A047",
-            activeforeground="white",
-            cursor="hand2"
+            radius=6
         )
         connect_btn.pack(side=tk.RIGHT)
 
@@ -237,35 +235,30 @@ class LoginWindow:
         btn_frame = tk.Frame(card_frame, bg="white")
         btn_frame.pack(fill=tk.X, padx=40, pady=(5, 15))
 
-        login_btn = tk.Button(
+        login_btn = create_rounded_button(
             btn_frame,
             text="登   录",
             command=self.login,
             font=("微软雅黑", 11, "bold"),
             bg=PRIMARY_COLOR,
             fg="white",
-            bd=0,
             padx=30,
             pady=6,
-            width=8,
-            activebackground=PRIMARY_DARK,
-            activeforeground="white",
-            cursor="hand2",
+            radius=8
         )
         login_btn.pack(side=tk.LEFT)
 
         # 游客登录按钮（弱化成文字链接风格，靠右）
-        guest_btn = tk.Button(
+        guest_btn = create_rounded_button(
             btn_frame,
             text="游客登录",
             command=self.enter_guest_mode,
             font=("微软雅黑", 9),
             bg="white",
             fg=TEXT_SECONDARY,
-            bd=0,
-            activebackground="white",
-            activeforeground=TEXT_PRIMARY,
-            cursor="hand2",
+            padx=15,
+            pady=6,
+            radius=6
         )
         guest_btn.pack(side=tk.RIGHT)
 
@@ -410,7 +403,7 @@ class RegisterWindow:
         btn_frame = tk.Frame(self.window)
         btn_frame.pack(pady=20)
         
-        tk.Button(
+        create_rounded_button(
             btn_frame,
             text="注册",
             command=self.register,
@@ -418,10 +411,11 @@ class RegisterWindow:
             bg="#4CAF50",
             fg="white",
             padx=20,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(
+        create_rounded_button(
             btn_frame,
             text="取消",
             command=self.window.destroy,
@@ -429,7 +423,8 @@ class RegisterWindow:
             bg="#9E9E9E",
             fg="white",
             padx=20,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
     
     def register(self):

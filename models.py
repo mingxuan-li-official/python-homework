@@ -6,6 +6,14 @@ from database import Database
 from typing import Optional, List, Dict, Tuple, Any
 from datetime import datetime, timedelta
 import hashlib
+import re
+import smtplib
+from email.mime.text import MIMEText
+from config import DB_CONFIG
+try:
+    from config import SMTP_CONFIG
+except Exception:
+    SMTP_CONFIG = {}
 
 _UNSET = object()
 
@@ -311,8 +319,92 @@ class BookModel:
     def __init__(self, db: Database):
         self.db = db
     
+    def _map_to_standard_category(self, category: str) -> str:
+        """将分类名称映射到标准分类"""
+        if not category:
+            return '未分类'
+        
+        # 去除首尾空格
+        category_clean = category.strip()
+        if not category_clean:
+            return '未分类'
+        
+        # 转为小写用于匹配（大小写不敏感）
+        category_lower = category_clean.lower()
+        
+        # 定义标准分类关键词映射（按优先级排序，更具体的在前）
+        # 注意：匹配顺序很重要，先匹配更具体的短语，再匹配单词
+        category_mapping = {
+            '教育类': [
+                'education', 'educational', 'textbook', '教材', '教育', '学习', '教学', 
+                '培训', '课程', 'study', 'teaching', 'learning', 'school', 'academic'
+            ],
+            '科普类': [
+                'science', 'scientific', '科普', '科学', '技术', 'technology', '物理', 
+                'chemistry', 'biology', '数学', 'math', '天文', 'astronomy', '地理', 
+                'geography', '自然', 'nature', 'physics', '化学', '生物', 'engineering'
+            ],
+            '文学类': [
+                # 先匹配复合短语
+                'classic literature', 'juvenile fiction', 'young adult', 
+                # 再匹配单词
+                'literature', 'literary', '文学', '小说', 'fiction', 'novel', '诗歌', 
+                'poetry', 'poem', '散文', 'essay', '故事', 'story', 'tale', 
+                'children', 'drama', 'play', 'theater', 'theatre', 'comedy', 
+                'tragedy', 'romance', 'mystery', 'thriller', 'horror', 'fantasy'
+            ],
+            '历史类': [
+                'history', 'historical', '历史', '古代', 'ancient', '近代', 'modern', 
+                '现代', 'contemporary', '史', '传记', 'biography', 'autobiography', 
+                'memoir', 'war', 'military', 'politics', 'political', 'civilization'
+            ],
+            '艺术类': [
+                'art', 'arts', '艺术', '美术', '绘画', 'painting', 'drawing', '音乐', 
+                'music', 'musical', '舞蹈', 'dance', '戏剧', 'theater', 'theatre', 
+                '电影', 'film', 'cinema', '摄影', 'photography', '设计', 'design', 
+                'graphic', 'fashion', 'architecture', 'sculpture', 'visual'
+            ]
+        }
+        
+        # 首先检查是否已经是标准分类名称
+        if category_clean in ['教育类', '科普类', '文学类', '历史类', '艺术类', '其他类', '未分类']:
+            return category_clean
+        
+        # 检查是否包含标准分类关键词（中文）
+        if '教育' in category_clean:
+            return '教育类'
+        elif '科普' in category_clean or '科学' in category_clean:
+            return '科普类'
+        elif '文学' in category_clean:
+            return '文学类'
+        elif '历史' in category_clean:
+            return '历史类'
+        elif '艺术' in category_clean:
+            return '艺术类'
+        
+        # 按优先级检查英文关键词（更具体的匹配优先）
+        # 先按长度排序关键词（长的在前），确保先匹配复合短语
+        for std_cat, keywords in category_mapping.items():
+            # 按长度降序排序，先匹配更长的短语
+            sorted_keywords = sorted(keywords, key=len, reverse=True)
+            for keyword in sorted_keywords:
+                keyword_lower = keyword.lower()
+                # 完整单词/短语匹配（避免部分匹配）
+                # 对于多词短语，直接检查是否在字符串中
+                if ' ' in keyword:
+                    # 多词短语：检查是否包含整个短语
+                    if keyword_lower in category_lower:
+                        return std_cat
+                else:
+                    # 单词：使用单词边界匹配
+                    pattern = r'\b' + re.escape(keyword_lower) + r'\b'
+                    if re.search(pattern, category_lower):
+                        return std_cat
+        
+        return '其他类'
+    
     def get_category_summary(self) -> List[Dict]:
-        """获取各分类图书数量与库存"""
+        """获取各分类图书数量与库存（使用标准分类）"""
         rows = self.db.execute_query(
             "SELECT category, total_copies, available_copies FROM books"
         )
@@ -322,26 +414,46 @@ class BookModel:
         summary: Dict[str, Dict[str, int]] = {}
         for row in rows:
             category_str = (row.get('category') or '').strip()
-            # category 可能由多个逗号分隔的主题组成，需要拆分统计
-            categories = [part.strip() for part in category_str.split(',') if part.strip()]
-            if not categories:
-                categories = ['未分类']
-            
             total = row.get('total_copies') or 0
             available = row.get('available_copies') or 0
             
-            for category in categories:
-                stats = summary.setdefault(
-                    category,
-                    {'category': category, 'book_count': 0, 'total_copies': 0, 'available_copies': 0}
-                )
-                stats['book_count'] += 1
-                stats['total_copies'] += total
-                stats['available_copies'] += available
+            # 将整个分类字符串映射到标准分类（处理多个分类的情况）
+            # 如果分类字符串包含多个分类，取第一个匹配的标准分类
+            std_category = self._map_to_standard_category(category_str)
+            
+            # 如果分类字符串包含逗号分隔的多个分类，尝试找到最匹配的标准分类
+            if ',' in category_str:
+                categories = [part.strip() for part in category_str.split(',') if part.strip()]
+                # 尝试为每个分类找到标准分类，取第一个非"其他类"的
+                for cat in categories:
+                    mapped = self._map_to_standard_category(cat)
+                    if mapped != '其他类':
+                        std_category = mapped
+                        break
+            
+            # 统计到对应的标准分类（每个图书只统计一次）
+            stats = summary.setdefault(
+                std_category,
+                {'category': std_category, 'book_count': 0, 'total_copies': 0, 'available_copies': 0}
+            )
+            stats['book_count'] += 1
+            stats['total_copies'] += total
+            stats['available_copies'] += available
         
-        # 按数量排序返回列表
-        sorted_summary = sorted(summary.values(), key=lambda item: item['book_count'], reverse=True)
-        return sorted_summary[:5]
+        # 定义标准分类的显示顺序
+        category_order = ['教育类', '科普类', '文学类', '历史类', '艺术类', '其他类', '未分类']
+        
+        # 按预定义顺序和数量排序
+        sorted_summary = sorted(
+            summary.values(), 
+            key=lambda item: (
+                category_order.index(item['category']) if item['category'] in category_order else 999,
+                -item['book_count']  # 数量降序
+            )
+        )
+        
+        # 返回所有分类
+        return sorted_summary
     
     def get_status_summary(self) -> List[Dict]:
         """获取各状态图书数量"""
@@ -688,6 +800,73 @@ class BorrowModel:
             print(f"归还失败: {e}")
             return False
     
+    def update_borrow(self, record_id: int, status: str = None, due_date: Any = None,
+                      return_date: Any = None, fine_amount: Any = None) -> bool:
+        """更新借阅记录（管理员可用）
+        支持更新 status/due_date/return_date/fine_amount，并同步更新图书可借数量与状态
+        """
+        try:
+            # 查询原始记录
+            rows = self.db.execute_query("SELECT * FROM borrow_records WHERE id = ?", (record_id,))
+            if not rows:
+                return False
+            record = rows[0]
+            old_status = record.get('status')
+            book_id = record.get('book_id')
+
+            updates = []
+            params = []
+            if status is not None:
+                updates.append("status = ?")
+                params.append(status)
+            if due_date is not None:
+                updates.append("due_date = ?")
+                params.append(due_date)
+            if return_date is not None:
+                updates.append("return_date = ?")
+                params.append(return_date)
+            if fine_amount is not None:
+                updates.append("fine_amount = ?")
+                params.append(fine_amount)
+
+            if not updates:
+                return False
+
+            params.append(record_id)
+            query = f"UPDATE borrow_records SET {', '.join(updates)} WHERE id = ?"
+            updated = self.db.execute_update(query, tuple(params)) > 0
+
+            # 同步图书表的 available_copies 与 status
+            if updated and book_id:
+                # 重新读取记录以获取新状态
+                new_rec = self.db.execute_query("SELECT * FROM borrow_records WHERE id = ?", (record_id,))
+                new_status = new_rec[0].get('status') if new_rec else None
+                # 如果由非返回状态变为已归还，需要增加可借数量
+                if old_status != 'returned' and new_status == 'returned':
+                    self.db.execute_update(
+                        "UPDATE books SET available_copies = available_copies + 1 WHERE id = ?",
+                        (book_id,)
+                    )
+                # 如果由已归还变为非已归还（管理员恢复借阅），则减少可借数量（但不小于0）
+                if old_status == 'returned' and new_status != 'returned':
+                    self.db.execute_update(
+                        "UPDATE books SET available_copies = GREATEST(available_copies - 1, 0) WHERE id = ?",
+                        (book_id,)
+                    )
+                # 调整图书状态字段
+                updated_book = self.db.execute_query("SELECT * FROM books WHERE id = ?", (book_id,))
+                if updated_book:
+                    ab = updated_book[0].get('available_copies', 0)
+                    if ab <= 0:
+                        self.db.execute_update("UPDATE books SET status = 'unavailable' WHERE id = ?", (book_id,))
+                    else:
+                        self.db.execute_update("UPDATE books SET status = 'available' WHERE id = ?", (book_id,))
+
+            return updated
+        except Exception as e:
+            print(f"更新借阅记录失败: {e}")
+            return False
+    
     def get_user_borrows(self, user_id: int, status: str = None) -> List[Dict]:
         """获取用户的借阅记录"""
         query = """SELECT br.*, b.title, b.author, b.isbn
@@ -751,4 +930,68 @@ class BorrowModel:
         stats['available_books'] = available[0]['count'] if available else 0
         
         return stats
+
+class EmailModel:
+    """邮件模型：保存管理员发送的邮件并尝试通过 SMTP 发送（可选）"""
+
+    def __init__(self, db: Database):
+        self.db = db
+
+    def send_email(self, sender_id: int, recipient_user_id: Optional[int], recipient_email: Optional[str],
+                   subject: str, body: str, try_send: bool = False) -> bool:
+        """
+        将邮件保存到数据库。若 try_send=True 且 SMTP 配置存在，则尝试发送邮件。
+        如果发送成功，则将 status 标记为 'sent' 并记录 sent_at，否则保持 'draft'。
+        """
+        try:
+            status = 'draft'
+            sent_at = None
+            # 如果需要并且配置可用，尝试发送
+            if try_send and SMTP_CONFIG and SMTP_CONFIG.get('host'):
+                try:
+                    host = SMTP_CONFIG.get('host')
+                    port = SMTP_CONFIG.get('port', 587)
+                    user = SMTP_CONFIG.get('user')
+                    password = SMTP_CONFIG.get('password')
+                    use_tls = SMTP_CONFIG.get('use_tls', True)
+                    msg = MIMEText(body, 'plain', 'utf-8')
+                    msg['Subject'] = subject
+                    msg['From'] = user or 'noreply'
+                    msg['To'] = recipient_email or ''
+                    server = smtplib.SMTP(host, port, timeout=10)
+                    if use_tls:
+                        server.starttls()
+                    if user and password:
+                        server.login(user, password)
+                    server.sendmail(msg['From'], [recipient_email], msg.as_string())
+                    server.quit()
+                    status = 'sent'
+                    sent_at = datetime.now()
+                except Exception as e:
+                    # 发送失败，保持 draft 状态并将异常打印
+                    print(f"邮件发送失败: {e}")
+
+            # 保存数据库记录（无论是否发送成功都保存）
+            self.db.execute_insert(
+                """INSERT INTO emails (sender_id, recipient_user_id, recipient_email, subject, body, status, sent_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (sender_id, recipient_user_id, recipient_email, subject, body, status, sent_at)
+            )
+            return True
+        except Exception as e:
+            print(f"保存邮件失败: {e}")
+            return False
+
+    def get_emails_for_user(self, user_id: int) -> List[Dict]:
+        """获取发给指定用户（或由管理员发出的）邮件记录"""
+        rows = self.db.execute_query(
+            "SELECT * FROM emails WHERE recipient_user_id = ? ORDER BY created_at DESC",
+            (user_id,)
+        )
+        return rows or []
+
+    def get_all_emails(self) -> List[Dict]:
+        """管理员查询所有邮件记录"""
+        rows = self.db.execute_query("SELECT * FROM emails ORDER BY created_at DESC")
+        return rows or []
 

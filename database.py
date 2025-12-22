@@ -178,6 +178,24 @@ class Database:
                     CHECK (status IN ('borrowed', 'returned', 'overdue'))
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """)
+            
+            # 创建邮件表（管理员发送邮件的存储）
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS emails (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    sender_id INT,
+                    recipient_user_id INT,
+                    recipient_email VARCHAR(200),
+                    subject VARCHAR(255),
+                    body TEXT,
+                    status VARCHAR(20) DEFAULT 'draft',
+                    sent_at TIMESTAMP NULL DEFAULT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE SET NULL,
+                    FOREIGN KEY (recipient_user_id) REFERENCES users(id) ON DELETE SET NULL,
+                    CHECK (status IN ('draft', 'sent'))
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
         
         # 初始化默认管理员账户
         self.init_default_admin()

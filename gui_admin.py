@@ -16,6 +16,7 @@ from ui_theme import (
     TEXT_PRIMARY,
     TEXT_SECONDARY,
     QUERY_COLOR,
+    create_rounded_button,
 )
 
 try:
@@ -100,27 +101,26 @@ class AdminWindow:
 
         # 侧边栏按钮
         menu_items = [
-            ("首页总览", self.refresh_statistics),
-            ("图书管理", lambda: self._switch_tab(1)),
-            ("借阅管理", lambda: self._switch_tab(2)),
-            ("用户管理", lambda: self._switch_tab(3)),
+            ("首页总览", lambda: self._switch_tab(0)),
+            ("统计信息", lambda: self._switch_tab(1)),
+            ("图书管理", lambda: self._switch_tab(2)),
+            ("借阅管理", lambda: self._switch_tab(3)),
+            ("用户管理", lambda: self._switch_tab(4)),
         ]
         for text, command in menu_items:
-            btn = tk.Button(
+            btn = create_rounded_button(
                 self.sidebar,
                 text=text,
                 command=command,
                 anchor="w",
                 padx=26,
                 pady=10,
-                relief="flat",
                 bg="#243447",
                 fg="white",
                 activebackground="#30455e",
                 activeforeground="white",
-                bd=0,
                 font=("微软雅黑", 10),
-                cursor="hand2",
+                radius=4
             )
             btn.pack(fill=tk.X, pady=(0, 2))
 
@@ -149,17 +149,16 @@ class AdminWindow:
             font=("微软雅黑", 10),
         ).pack(side=tk.RIGHT, padx=12)
 
-        tk.Button(
+        create_rounded_button(
             self.header,
             text="退出登录",
             command=self.logout,
             bg=DANGER_COLOR,
             fg="white",
             font=("微软雅黑", 10),
-            bd=0,
             padx=12,
             pady=6,
-            cursor="hand2",
+            radius=6
         ).pack(side=tk.RIGHT, padx=14)
 
         # 主内容卡片
@@ -190,6 +189,11 @@ class AdminWindow:
         self.notebook = ttk.Notebook(self.main_card)
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=12, pady=8)
         
+        # 首页标签页
+        home_frame = tk.Frame(self.notebook)
+        self.notebook.add(home_frame, text="首页")
+        self.create_home_tab(home_frame)
+        
         # 统计信息标签页
         stats_frame = tk.Frame(self.notebook)
         self.notebook.add(stats_frame, text="统计信息")
@@ -209,6 +213,228 @@ class AdminWindow:
         users_frame = tk.Frame(self.notebook)
         self.notebook.add(users_frame, text="用户管理")
         self.create_users_tab(users_frame)
+    
+    def _switch_tab(self, index: int):
+        """切换标签页"""
+        if 0 <= index < self.notebook.index("end"):
+            self.notebook.select(index)
+            # 如果切换到首页标签页（索引0），刷新首页数据
+            if index == 0:
+                self.refresh_home_data()
+            # 如果切换到统计信息标签页（索引1），刷新统计数据
+            elif index == 1:
+                self.refresh_statistics()
+                self.refresh_admin_charts()
+    
+    def create_home_tab(self, parent):
+        """创建首页标签页"""
+        # 主容器
+        main_container = tk.Frame(parent, bg=NEUTRAL_BG)
+        main_container.pack(fill=tk.BOTH, expand=True)
+        
+        # 顶部蓝色横幅
+        banner_frame = tk.Frame(main_container, bg="#5FB0FF", height=200)
+        banner_frame.pack(fill=tk.X, side=tk.TOP)
+        banner_frame.pack_propagate(False)
+        
+        # 横幅内容容器
+        banner_content = tk.Frame(banner_frame, bg="#5FB0FF")
+        banner_content.pack(fill=tk.BOTH, expand=True, padx=40, pady=30)
+        
+        # 左侧文字区域
+        left_text_frame = tk.Frame(banner_content, bg="#5FB0FF")
+        left_text_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # 主标题
+        title_label = tk.Label(
+            left_text_frame,
+            text="欢迎使用图书管理系统",
+            font=("微软雅黑", 24, "bold"),
+            bg="#5FB0FF",
+            fg="white",
+            anchor="w"
+        )
+        title_label.pack(fill=tk.X, pady=(0, 10))
+        
+        # 问候语
+        greeting_text = f"你好, {self.user.get('name', 'admin')}, 祝你有美好的一天!"
+        greeting_label = tk.Label(
+            left_text_frame,
+            text=greeting_text,
+            font=("微软雅黑", 14),
+            bg="#5FB0FF",
+            fg="white",
+            anchor="w"
+        )
+        greeting_label.pack(fill=tk.X, pady=(0, 20))
+        
+        # 按钮区域
+        button_frame = tk.Frame(left_text_frame, bg="#5FB0FF")
+        button_frame.pack(fill=tk.X)
+        
+        # 浏览图书按钮
+        browse_btn = create_rounded_button(
+            button_frame,
+            text="浏览图书",
+            command=lambda: self._switch_tab(2),
+            font=("微软雅黑", 12),
+            bg="#87CEEB",
+            fg="white",
+            padx=20,
+            pady=10,
+            radius=8
+        )
+        browse_btn.pack(side=tk.LEFT, padx=(0, 15))
+        
+        # 借阅管理按钮
+        borrow_btn = create_rounded_button(
+            button_frame,
+            text="借阅管理",
+            command=lambda: self._switch_tab(3),
+            font=("微软雅黑", 12),
+            bg=SUCCESS_COLOR,
+            fg="white",
+            padx=20,
+            pady=10,
+            radius=8
+        )
+        borrow_btn.pack(side=tk.LEFT)
+        
+        # 右侧装饰图标（书签）
+        right_icon_frame = tk.Frame(banner_content, bg="#5FB0FF", width=150)
+        right_icon_frame.pack(side=tk.RIGHT, fill=tk.Y)
+        right_icon_frame.pack_propagate(False)
+        
+        # 使用Unicode书签符号作为装饰
+        icon_label = tk.Label(
+            right_icon_frame,
+            text="🔖",
+            font=("微软雅黑", 80),
+            bg="#5FB0FF",
+            fg="white"
+        )
+        icon_label.pack(expand=True)
+        
+        # 底部白色内容区域
+        content_area = tk.Frame(main_container, bg="white")
+        content_area.pack(fill=tk.BOTH, expand=True, padx=30, pady=30)
+        
+        # 4个数据卡片容器
+        cards_frame = tk.Frame(content_area, bg="white")
+        cards_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # 创建4个数据卡片
+        self.home_cards = []
+        card_configs = [
+            {"label": "图书总数", "icon": "📚", "color": "#42a5f5", "key": "total_books"},
+            {"label": "借阅总数", "icon": "📋", "color": SUCCESS_COLOR, "key": "total_borrows"},
+            {"label": "用户总数", "icon": "👥", "color": "#ffa726", "key": "total_users"},
+            {"label": "图书类型", "icon": "🔖", "color": "#ef5350", "key": "book_types"}
+        ]
+        
+        for i, config in enumerate(card_configs):
+            card = tk.Frame(cards_frame, bg="white", relief="flat", bd=1)
+            card.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=15)
+            
+            # 图标区域
+            icon_frame = tk.Frame(card, bg=config["color"], width=80, height=80)
+            icon_frame.pack(pady=20)
+            icon_frame.pack_propagate(False)
+            
+            icon_label = tk.Label(
+                icon_frame,
+                text=config["icon"],
+                font=("微软雅黑", 40),
+                bg=config["color"],
+                fg="white"
+            )
+            icon_label.pack(expand=True)
+            
+            # 数值标签
+            value_label = tk.Label(
+                card,
+                text="0",
+                font=("微软雅黑", 28, "bold"),
+                bg="white",
+                fg=TEXT_PRIMARY
+            )
+            value_label.pack(pady=(10, 5))
+            self.home_cards.append({"value_label": value_label, "key": config["key"]})
+            
+            # 文字标签
+            text_label = tk.Label(
+                card,
+                text=config["label"],
+                font=("微软雅黑", 14),
+                bg="white",
+                fg=TEXT_SECONDARY
+            )
+            text_label.pack(pady=(0, 20))
+        
+        # 初始化数据
+        self.refresh_home_data()
+    
+    def refresh_home_data(self):
+        """刷新首页数据"""
+        try:
+            # 获取统计数据
+            stats = self.client.get_statistics()
+            if stats:
+                # 更新图书总数
+                for card in self.home_cards:
+                    if card["key"] == "total_books":
+                        card["value_label"].config(text=str(stats.get('total_books', 0)))
+                    elif card["key"] == "total_borrows":
+                        card["value_label"].config(text=str(stats.get('total_borrows', 0)))
+            
+            # 获取用户总数
+            try:
+                users = self.client.get_all_users()
+                user_count = len(users) if users else 0
+            except:
+                user_count = 0
+            
+            for card in self.home_cards:
+                if card["key"] == "total_users":
+                    card["value_label"].config(text=str(user_count))
+            
+            # 获取图书类型数（使用分类摘要获取标准分类数）
+            try:
+                dashboard_data = self.client.get_admin_dashboard_data(days=30)
+                if dashboard_data and 'category_summary' in dashboard_data:
+                    category_summary = dashboard_data['category_summary']
+                    type_count = len(category_summary) if category_summary else 0
+                else:
+                    # 如果没有分类摘要，使用原始分类列表去重
+                    categories = self.client.get_categories()
+                    if categories:
+                        unique_categories = set()
+                        for cat in categories:
+                            if cat and cat.strip():
+                                unique_categories.add(cat.strip())
+                        type_count = len(unique_categories)
+                    else:
+                        type_count = 0
+            except:
+                # 如果获取失败，尝试使用分类列表
+                try:
+                    categories = self.client.get_categories()
+                    if categories:
+                        unique_categories = set()
+                        for cat in categories:
+                            if cat and cat.strip():
+                                unique_categories.add(cat.strip())
+                        type_count = len(unique_categories)
+                    else:
+                        type_count = 0
+                except:
+                    type_count = 0
+            
+            for card in self.home_cards:
+                if card["key"] == "book_types":
+                    card["value_label"].config(text=str(type_count))
+        except Exception as e:
+            print(f"刷新首页数据失败: {e}")
     
     def create_stats_tab(self, parent):
         """创建统计信息标签页"""
@@ -256,7 +482,7 @@ class AdminWindow:
         btn_frame = tk.Frame(stats_frame)
         btn_frame.pack(fill=tk.X, pady=10)
         
-        tk.Button(
+        create_rounded_button(
             btn_frame,
             text="刷新统计",
             command=self.refresh_statistics,
@@ -264,10 +490,11 @@ class AdminWindow:
             bg=SUCCESS_COLOR,
             fg="white",
             padx=20,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(
+        create_rounded_button(
             btn_frame,
             text="刷新图表",
             command=self.refresh_admin_charts,
@@ -275,7 +502,8 @@ class AdminWindow:
             bg=PRIMARY_COLOR,
             fg="white",
             padx=20,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
     
     def create_books_tab(self, parent):
@@ -288,7 +516,7 @@ class AdminWindow:
         self.search_entry = tk.Entry(search_frame, font=("微软雅黑", 10), width=30)
         self.search_entry.pack(side=tk.LEFT, padx=5)
         
-        tk.Button(
+        create_rounded_button(
             search_frame,
             text="搜索",
             command=self.search_books,
@@ -296,10 +524,11 @@ class AdminWindow:
             bg=QUERY_COLOR,
             fg="white",
             padx=15,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(
+        create_rounded_button(
             search_frame,
             text="添加图书",
             command=self.show_add_book,
@@ -307,10 +536,11 @@ class AdminWindow:
             bg=PRIMARY_COLOR,
             fg="white",
             padx=15,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(
+        create_rounded_button(
             search_frame,
             text="爬取图书",
             command=self.show_import_books,
@@ -318,10 +548,11 @@ class AdminWindow:
             bg=PRIMARY_COLOR,
             fg="white",
             padx=15,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(
+        create_rounded_button(
             search_frame,
             text="刷新",
             command=self.refresh_books,
@@ -329,7 +560,8 @@ class AdminWindow:
             bg=PRIMARY_COLOR,
             fg="white",
             padx=15,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
         
         # 图书列表
@@ -357,7 +589,7 @@ class AdminWindow:
         btn_frame = tk.Frame(parent)
         btn_frame.pack(pady=10)
         
-        tk.Button(
+        create_rounded_button(
             btn_frame,
             text="编辑",
             command=self.edit_book,
@@ -365,10 +597,11 @@ class AdminWindow:
             bg=PRIMARY_COLOR,
             fg="white",
             padx=15,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(
+        create_rounded_button(
             btn_frame,
             text="删除",
             command=self.delete_book,
@@ -376,14 +609,36 @@ class AdminWindow:
             bg=DANGER_COLOR,
             fg="white",
             padx=15,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
     
     def create_borrows_tab(self, parent):
         """创建借阅管理标签页"""
+        # 搜索框架
+        search_frame = tk.Frame(parent)
+        search_frame.pack(fill=tk.X, padx=10, pady=10)
+        
+        tk.Label(search_frame, text="搜索:", font=("微软雅黑", 10)).pack(side=tk.LEFT, padx=5)
+        self.borrow_search_entry = tk.Entry(search_frame, font=("微软雅黑", 10), width=30)
+        self.borrow_search_entry.pack(side=tk.LEFT, padx=5)
+        self.borrow_search_entry.bind('<Return>', lambda e: self.search_borrows())
+        
+        create_rounded_button(
+            search_frame,
+            text="搜索",
+            command=self.search_borrows,
+            font=("微软雅黑", 10),
+            bg=QUERY_COLOR,
+            fg="white",
+            padx=15,
+            pady=5,
+            radius=6
+        ).pack(side=tk.LEFT, padx=5)
+        
         # 筛选框架
         filter_frame = tk.Frame(parent)
-        filter_frame.pack(fill=tk.X, padx=10, pady=10)
+        filter_frame.pack(fill=tk.X, padx=10, pady=5)
         
         tk.Label(filter_frame, text="状态筛选:", font=("微软雅黑", 10)).pack(side=tk.LEFT, padx=5)
         self.status_var = tk.StringVar(value="all")
@@ -393,7 +648,7 @@ class AdminWindow:
                           value=value, font=("微软雅黑", 10),
                           command=self.refresh_borrows).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(
+        create_rounded_button(
             filter_frame,
             text="刷新",
             command=self.refresh_borrows,
@@ -401,8 +656,21 @@ class AdminWindow:
             bg=PRIMARY_COLOR,
             fg="white",
             padx=15,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.RIGHT, padx=5)
+        
+        create_rounded_button(
+            filter_frame,
+            text="编辑",
+            command=self.edit_borrow,
+            font=("微软雅黑", 10),
+            bg="#2196F3",
+            fg="white",
+            padx=15,
+            pady=5,
+            radius=6
+        ).pack(side=tk.RIGHT, padx=(0,5))
         
         # 借阅记录列表
         list_frame = tk.Frame(parent)
@@ -431,7 +699,7 @@ class AdminWindow:
         self.user_search_entry = tk.Entry(search_frame, font=("微软雅黑", 10), width=30)
         self.user_search_entry.pack(side=tk.LEFT, padx=5)
         
-        tk.Button(
+        create_rounded_button(
             search_frame,
             text="搜索",
             command=self.search_users,
@@ -439,10 +707,11 @@ class AdminWindow:
             bg=QUERY_COLOR,
             fg="white",
             padx=15,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(
+        create_rounded_button(
             search_frame,
             text="刷新",
             command=self.refresh_users,
@@ -450,7 +719,20 @@ class AdminWindow:
             bg=PRIMARY_COLOR,
             fg="white",
             padx=15,
-            pady=5
+            pady=5,
+            radius=6
+        ).pack(side=tk.LEFT, padx=5)
+        
+        create_rounded_button(
+            search_frame,
+            text="发送邮件",
+            command=self.compose_email,
+            font=("微软雅黑", 10),
+            bg="#1976d2",
+            fg="white",
+            padx=15,
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
         
         # 用户列表
@@ -479,7 +761,7 @@ class AdminWindow:
         btn_frame = tk.Frame(parent)
         btn_frame.pack(pady=10)
         
-        tk.Button(
+        create_rounded_button(
             btn_frame,
             text="增加用户",
             command=self.add_user,
@@ -487,10 +769,11 @@ class AdminWindow:
             bg=SUCCESS_COLOR,
             fg="white",
             padx=15,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(
+        create_rounded_button(
             btn_frame,
             text="编辑",
             command=self.edit_user,
@@ -498,10 +781,11 @@ class AdminWindow:
             bg=PRIMARY_COLOR,
             fg="white",
             padx=15,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(
+        create_rounded_button(
             btn_frame,
             text="删除用户",
             command=self.delete_user,
@@ -509,7 +793,8 @@ class AdminWindow:
             bg=DANGER_COLOR,
             fg="white",
             padx=15,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
     
     def refresh_statistics(self):
@@ -564,12 +849,20 @@ class AdminWindow:
         categories = [row.get('category', '未分类') for row in category_summary]
         counts = [row.get('book_count', 0) for row in category_summary]
         if categories and any(counts):
-            ax1.bar(categories, counts, color="#42a5f5")
-            ax1.set_ylabel("图书数量")
-            ax1.set_title("分类图书数量")
-            ax1.tick_params(axis='x', rotation=45)
+            # 使用不同颜色区分不同分类
+            colors = ['#42a5f5', '#66bb6a', '#ffa726', '#ab47bc', '#ef5350', '#78909c', '#bdbdbd']
+            bar_colors = [colors[i % len(colors)] for i in range(len(categories))]
+            ax1.bar(categories, counts, color=bar_colors)
+            ax1.set_ylabel("图书数量", fontsize=10)
+            ax1.set_title("分类图书数量统计", fontsize=12, fontweight='bold')
+            ax1.tick_params(axis='x', rotation=45, labelsize=9)
+            ax1.tick_params(axis='y', labelsize=9)
+            # 在柱状图上显示数值
+            for i, (cat, count) in enumerate(zip(categories, counts)):
+                if count > 0:
+                    ax1.text(i, count, str(count), ha='center', va='bottom', fontsize=8)
         else:
-            ax1.text(0.5, 0.5, "暂无分类数据", ha='center', va='center')
+            ax1.text(0.5, 0.5, "暂无分类数据", ha='center', va='center', fontsize=12)
             ax1.axis('off')
         
         ax2 = self.inventory_fig.add_subplot(212)
@@ -621,6 +914,14 @@ class AdminWindow:
             ax_trend.set_title("借阅/归还趋势 (近7天)")
             ax_trend.tick_params(axis='x', rotation=45)
             ax_trend.legend()
+            # 强制 y 轴从 0 开始并使用整数刻度，避免出现负数或小数刻度
+            try:
+                from matplotlib.ticker import MaxNLocator
+                y_max = max(max(borrow_vals or [0]), max(return_vals or [0]), 0)
+                ax_trend.set_ylim(0, max(1, y_max) + 1)
+                ax_trend.yaxis.set_major_locator(MaxNLocator(integer=True))
+            except Exception:
+                pass
         else:
             ax_trend.text(0.5, 0.5, "暂无趋势数据", ha='center', va='center')
             ax_trend.axis('off')
@@ -634,28 +935,117 @@ class AdminWindow:
         }
         labels = [status_map.get(status, status) for status in statuses]
         if counts and any(counts):
-            ax_status.bar(labels, counts, color="#9C27B0")
+            # 为每个状态使用不同颜色，便于区分
+            try:
+                default_colors = ['#42a5f5', '#66bb6a', '#ffa726', '#ab47bc', '#ef5350', '#29b6f6']
+                bar_colors = [default_colors[i % len(default_colors)] for i in range(len(labels))]
+            except Exception:
+                bar_colors = None
+            bars = ax_status.bar(labels, counts, color=bar_colors, edgecolor='white')
             ax_status.set_title("借阅状态分布")
+            # 在柱子上标注数量，并确保 y 轴从 0 开始且为整数刻度
+            try:
+                from matplotlib.ticker import MaxNLocator
+                y_max = max(counts or [0])
+                ax_status.set_ylim(0, max(1, y_max) + 1)
+                ax_status.yaxis.set_major_locator(MaxNLocator(integer=True))
+                for bar, cnt in zip(bars, counts):
+                    if cnt is not None:
+                        ax_status.text(bar.get_x() + bar.get_width() / 2, cnt, str(int(cnt)),
+                                       ha='center', va='bottom', fontsize=8)
+            except Exception:
+                pass
         else:
             ax_status.text(0.5, 0.5, "暂无借阅状态数据", ha='center', va='center')
             ax_status.axis('off')
         
         if durations:
-            bins = min(10, len(set(durations)))
-            ax_duration.hist(durations, bins=bins, color="#03A9F4")
+            # 确保数据为整数并且 x 轴从 0 开始（借阅时长不应为负）
+            try:
+                durations_int = [int(d) for d in durations]
+            except Exception:
+                durations_int = durations
+            # 使用整数刻度的直方图
+            try:
+                from matplotlib.ticker import MaxNLocator
+                min_d = min(durations_int) if durations_int else 0
+                max_d = max(durations_int) if durations_int else 0
+                bins = range(min_d, max_d + 2) if max_d - min_d <= 50 else min(10, len(set(durations_int)))
+                n, edges, patches = ax_duration.hist(durations_int, bins=bins, color="#03A9F4", edgecolor='white')
+                # 给每个柱子着不同的颜色（渐变）
+                try:
+                    cmap = matplotlib.cm.get_cmap('Blues')
+                    colors = [cmap(0.4 + 0.5 * i / max(1, len(patches) - 1)) for i in range(len(patches))]
+                    for p, c in zip(patches, colors):
+                        p.set_facecolor(c)
+                        p.set_edgecolor('white')
+                except Exception:
+                    pass
+            except Exception:
+                n, edges, patches = ax_duration.hist(durations_int, color="#03A9F4", edgecolor='white')
+                try:
+                    cmap = matplotlib.cm.get_cmap('Blues')
+                    colors = [cmap(0.5) for _ in patches]
+                    for p, c in zip(patches, colors):
+                        p.set_facecolor(c)
+                        p.set_edgecolor('white')
+                except Exception:
+                    pass
             ax_duration.set_title("借阅时长分布 (天)")
             ax_duration.set_xlabel("天数")
             ax_duration.set_ylabel("记录数")
+            try:
+                from matplotlib.ticker import MaxNLocator
+                # x 轴从 0 开始
+                if min_d >= 0:
+                    ax_duration.set_xlim(left=0)
+                ax_duration.yaxis.set_major_locator(MaxNLocator(integer=True))
+                ax_duration.xaxis.set_major_locator(MaxNLocator(integer=True))
+            except Exception:
+                pass
         else:
             ax_duration.text(0.5, 0.5, "暂无借阅时长数据", ha='center', va='center')
             ax_duration.axis('off')
         
         if overdue_days:
-            bins = min(10, len(set(overdue_days)))
-            ax_overdue.hist(overdue_days, bins=bins, color="#E91E63")
+            try:
+                overdue_int = [int(d) for d in overdue_days]
+            except Exception:
+                overdue_int = overdue_days
+            try:
+                min_o = min(overdue_int) if overdue_int else 0
+                max_o = max(overdue_int) if overdue_int else 0
+                bins = range(min_o, max_o + 2) if max_o - min_o <= 50 else min(10, len(set(overdue_int)))
+                n_o, edges_o, patches_o = ax_overdue.hist(overdue_int, bins=bins, color="#E91E63", edgecolor='white')
+                try:
+                    cmap_o = matplotlib.cm.get_cmap('Reds')
+                    colors_o = [cmap_o(0.4 + 0.5 * i / max(1, len(patches_o) - 1)) for i in range(len(patches_o))]
+                    for p, c in zip(patches_o, colors_o):
+                        p.set_facecolor(c)
+                        p.set_edgecolor('white')
+                except Exception:
+                    pass
+            except Exception:
+                n_o, edges_o, patches_o = ax_overdue.hist(overdue_int, color="#E91E63", edgecolor='white')
+                try:
+                    cmap_o = matplotlib.cm.get_cmap('Reds')
+                    colors_o = [cmap_o(0.6) for _ in patches_o]
+                    for p, c in zip(patches_o, colors_o):
+                        p.set_facecolor(c)
+                        p.set_edgecolor('white')
+                except Exception:
+                    pass
             ax_overdue.set_title("逾期天数分布")
             ax_overdue.set_xlabel("天数")
             ax_overdue.set_ylabel("记录数")
+            try:
+                from matplotlib.ticker import MaxNLocator
+                if min_o >= 0:
+                    ax_overdue.set_xlim(left=0)
+                ax_overdue.yaxis.set_major_locator(MaxNLocator(integer=True))
+                ax_overdue.xaxis.set_major_locator(MaxNLocator(integer=True))
+            except Exception:
+                pass
         else:
             ax_overdue.text(0.5, 0.5, "暂无逾期数据", ha='center', va='center')
             ax_overdue.axis('off')
@@ -775,58 +1165,126 @@ class AdminWindow:
                 borrows = []
             
             # 显示借阅记录
-            if borrows:
-                for borrow in borrows:
-                    # 格式化日期
-                    borrow_date = borrow.get('borrow_date', '')
-                    if borrow_date and isinstance(borrow_date, str):
-                        try:
-                            # 如果是 ISO 格式，转换为更易读的格式
-                            if 'T' in borrow_date:
-                                borrow_date = borrow_date.split('T')[0]
-                        except:
-                            pass
-                    
-                    due_date = borrow.get('due_date', '')
-                    if due_date and isinstance(due_date, str):
-                        try:
-                            if 'T' in due_date:
-                                due_date = due_date.split('T')[0]
-                        except:
-                            pass
-                    
-                    return_date = borrow.get('return_date', '') or '未归还'
-                    if return_date and return_date != '未归还' and isinstance(return_date, str):
-                        try:
-                            if 'T' in return_date:
-                                return_date = return_date.split('T')[0]
-                        except:
-                            pass
-                    
-                    # 格式化状态显示
-                    status_text = borrow.get('status', '')
-                    status_map = {
-                        'borrowed': '借阅中',
-                        'returned': '已归还',
-                        'overdue': '逾期'
-                    }
-                    status_display = status_map.get(status_text, status_text)
-                    
-                    self.borrows_tree.insert("", tk.END, values=(
-                        borrow.get('id', ''),
-                        borrow.get('username', ''),
-                        borrow.get('user_name', ''),
-                        borrow.get('title', ''),
-                        borrow.get('author', ''),
-                        borrow_date,
-                        due_date,
-                        return_date,
-                        status_display
-                    ))
-            # 如果没有数据，不显示任何内容（空列表表示没有记录）
+            self._display_borrows(borrows)
         except Exception as e:
             messagebox.showerror("错误", f"刷新借阅记录失败: {str(e)}")
             print(f"刷新借阅记录错误: {e}")
+
+    def edit_borrow(self):
+        """编辑选中的借阅记录"""
+        selection = self.borrows_tree.selection()
+        if not selection:
+            messagebox.showwarning("警告", "请选择要编辑的借阅记录")
+            return
+        item = self.borrows_tree.item(selection[0])
+        record_id = item['values'][0]
+        # 获取完整记录（通过 client 请求）
+        # 在 get_all_borrows 返回的数据中查找
+        borrows = self.client.get_all_borrows(status=None)
+        record = None
+        for r in borrows:
+            if r.get('id') == record_id:
+                record = r
+                break
+        if not record:
+            messagebox.showerror("错误", "未找到借阅记录的详细信息")
+            return
+        dialog = BorrowEditDialog(self.root, self.client, record)
+        self.root.wait_window(dialog.window)
+        # 刷新列表
+        self.refresh_borrows()
+    
+    def search_borrows(self):
+        """搜索借阅记录"""
+        keyword = self.borrow_search_entry.get().strip().lower()
+        
+        # 清空现有数据
+        for item in self.borrows_tree.get_children():
+            self.borrows_tree.delete(item)
+        
+        try:
+            # 获取借阅记录（先按状态筛选）
+            status = self.status_var.get()
+            status = None if status == "all" else status
+            borrows = self.client.get_all_borrows(status)
+            
+            # 确保 borrows 是列表
+            if not isinstance(borrows, list):
+                borrows = []
+            
+            # 如果有搜索关键词，进行客户端过滤
+            if keyword:
+                filtered_borrows = []
+                for borrow in borrows:
+                    # 搜索用户名、姓名、书名、作者等字段
+                    username = str(borrow.get('username', '')).lower()
+                    user_name = str(borrow.get('user_name', '')).lower()
+                    title = str(borrow.get('title', '')).lower()
+                    author = str(borrow.get('author', '')).lower()
+                    
+                    if (keyword in username or 
+                        keyword in user_name or 
+                        keyword in title or 
+                        keyword in author):
+                        filtered_borrows.append(borrow)
+                borrows = filtered_borrows
+            
+            # 显示搜索结果
+            self._display_borrows(borrows)
+        except Exception as e:
+            messagebox.showerror("错误", f"搜索借阅记录失败: {str(e)}")
+            print(f"搜索借阅记录错误: {e}")
+    
+    def _display_borrows(self, borrows):
+        """显示借阅记录列表（内部方法）"""
+        if borrows:
+            for borrow in borrows:
+                # 格式化日期
+                borrow_date = borrow.get('borrow_date', '')
+                if borrow_date and isinstance(borrow_date, str):
+                    try:
+                        # 如果是 ISO 格式，转换为更易读的格式
+                        if 'T' in borrow_date:
+                            borrow_date = borrow_date.split('T')[0]
+                    except:
+                        pass
+                
+                due_date = borrow.get('due_date', '')
+                if due_date and isinstance(due_date, str):
+                    try:
+                        if 'T' in due_date:
+                            due_date = due_date.split('T')[0]
+                    except:
+                        pass
+                
+                return_date = borrow.get('return_date', '') or '未归还'
+                if return_date and return_date != '未归还' and isinstance(return_date, str):
+                    try:
+                        if 'T' in return_date:
+                            return_date = return_date.split('T')[0]
+                    except:
+                        pass
+                
+                # 格式化状态显示
+                status_text = borrow.get('status', '')
+                status_map = {
+                    'borrowed': '借阅中',
+                    'returned': '已归还',
+                    'overdue': '逾期'
+                }
+                status_display = status_map.get(status_text, status_text)
+                
+                self.borrows_tree.insert("", tk.END, values=(
+                    borrow.get('id', ''),
+                    borrow.get('username', ''),
+                    borrow.get('user_name', ''),
+                    borrow.get('title', ''),
+                    borrow.get('author', ''),
+                    borrow_date,
+                    due_date,
+                    return_date,
+                    status_display
+                ))
     
     def refresh_users(self):
         """刷新用户列表"""
@@ -902,8 +1360,49 @@ class AdminWindow:
                 ))
     
     def on_user_double_click(self, event):
-        """双击用户事件"""
+        """双击用户事件：如果双击邮箱列则直接打开发送邮件界面，否则编辑用户"""
+        try:
+            col = self.users_tree.identify_column(event.x)  # 返回 '#n'
+            # 定位到“邮箱”列（在 columns 定义中是第6列 -> '#6'）
+            if col == '#6':
+                selection = self.users_tree.identify_row(event.y)
+                if not selection:
+                    return
+                item = self.users_tree.item(selection)
+                vals = item.get('values', [])
+                user_id = vals[0] if len(vals) > 0 else None
+                email = vals[5] if len(vals) > 5 else None
+                selected_user_ids = [user_id] if user_id else []
+                selected_emails = [email] if email else []
+                dialog = ComposeEmailDialog(self.root, self.client, self.user, selected_user_ids, selected_emails)
+                self.root.wait_window(dialog.window)
+                return
+        except Exception:
+            pass
+        # 其它列默认编辑用户
         self.edit_user()
+
+    def compose_email(self):
+        """打开发送邮件对话框，默认目标为当前选中用户（可选择发送给所有用户）"""
+        selection = self.users_tree.selection()
+        selected_user_ids = []
+        selected_emails = []
+        if selection:
+            for s in selection:
+                try:
+                    item = self.users_tree.item(s)
+                    vals = item.get('values', [])
+                    user_id = vals[0] if len(vals) > 0 else None
+                    email = vals[5] if len(vals) > 5 else None
+                    if user_id:
+                        selected_user_ids.append(user_id)
+                    if email:
+                        selected_emails.append(email)
+                except Exception:
+                    continue
+        dialog = ComposeEmailDialog(self.root, self.client, self.user, selected_user_ids, selected_emails)
+        self.root.wait_window(dialog.window)
+        # 无需自动刷新
     
     def add_user(self):
         """添加用户"""
@@ -1055,7 +1554,7 @@ class BookDialog:
         btn_frame = tk.Frame(self.window)
         btn_frame.pack(pady=15)
         
-        tk.Button(
+        create_rounded_button(
             btn_frame,
             text="保存",
             command=self.save,
@@ -1063,10 +1562,11 @@ class BookDialog:
             bg="#4CAF50",
             fg="white",
             padx=20,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(
+        create_rounded_button(
             btn_frame,
             text="取消",
             command=self.window.destroy,
@@ -1074,7 +1574,8 @@ class BookDialog:
             bg="#9E9E9E",
             fg="white",
             padx=20,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
     
     def load_book_data(self):
@@ -1210,7 +1711,7 @@ class AddUserDialog:
         btn_frame = tk.Frame(self.window)
         btn_frame.pack(pady=15)
         
-        tk.Button(
+        create_rounded_button(
             btn_frame,
             text="保存",
             command=self.save,
@@ -1218,10 +1719,11 @@ class AddUserDialog:
             bg="#4CAF50",
             fg="white",
             padx=20,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(
+        create_rounded_button(
             btn_frame,
             text="取消",
             command=self.window.destroy,
@@ -1229,7 +1731,8 @@ class AddUserDialog:
             bg="#9E9E9E",
             fg="white",
             padx=20,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
     
     def save(self):
@@ -1369,7 +1872,7 @@ class UserDialog:
         btn_frame = tk.Frame(self.window)
         btn_frame.pack(pady=15)
         
-        tk.Button(
+        create_rounded_button(
             btn_frame,
             text="保存",
             command=self.save,
@@ -1377,10 +1880,11 @@ class UserDialog:
             bg="#4CAF50",
             fg="white",
             padx=20,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(
+        create_rounded_button(
             btn_frame,
             text="取消",
             command=self.window.destroy,
@@ -1388,7 +1892,8 @@ class UserDialog:
             bg="#9E9E9E",
             fg="white",
             padx=20,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
     
     def load_user_data(self):
@@ -1457,6 +1962,130 @@ class UserDialog:
             self.window.destroy()
         else:
             messagebox.showerror("错误", "更新失败")
+
+class ComposeEmailDialog:
+    """管理员发送邮件对话框"""
+
+    def __init__(self, parent, client, admin_user, selected_user_ids=None, selected_emails=None):
+        self.client = client
+        self.admin_user = admin_user or {}
+        self.selected_user_ids = selected_user_ids or []
+        self.selected_emails = selected_emails or []
+        self.window = tk.Toplevel(parent)
+        self.window.title("发送邮件")
+        # 扩大窗口以确保正文与按钮可见
+        self.window.geometry("900x600")
+        self.window.resizable(False, False)
+        self.window.transient(parent)
+        self.window.grab_set()
+        self.create_widgets()
+
+    def create_widgets(self):
+        frame = tk.Frame(self.window, bg=CARD_BG)
+        frame.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
+
+        # 收件对象说明
+        target_text = "选中用户" if self.selected_user_ids or self.selected_emails else "所有用户"
+        tk.Label(frame, text=f"收件对象：{target_text}", font=("微软雅黑", 11), bg=CARD_BG, fg=TEXT_PRIMARY).pack(anchor="w", pady=(0,8))
+        if self.selected_emails:
+            tk.Label(frame, text="选中邮箱：" + ", ".join(self.selected_emails), font=("微软雅黑", 9), bg=CARD_BG, fg=TEXT_SECONDARY, wraplength=600, justify="left").pack(anchor="w", pady=(0,8))
+
+        # 按钮：固定在顶部，避免正文扩展时按钮不可见
+        top_btn_frame = tk.Frame(frame, bg=CARD_BG)
+        top_btn_frame.pack(side=tk.TOP, fill=tk.X, pady=(0, 8))
+        # 清晰的短标签按钮，确保“发送”按钮易于发现
+        create_rounded_button(top_btn_frame, text="发送", command=self.send_and_try, font=("微软雅黑", 11, "bold"), bg=SUCCESS_COLOR, fg="white", padx=18, pady=8, radius=6).pack(side=tk.LEFT, padx=8)
+        create_rounded_button(top_btn_frame, text="保存草稿", command=self.save_draft, font=("微软雅黑", 10), bg=PRIMARY_COLOR, fg="white", padx=14, pady=8, radius=6).pack(side=tk.LEFT, padx=8)
+        create_rounded_button(top_btn_frame, text="关闭", command=self.window.destroy, font=("微软雅黑", 10), bg="#9E9E9E", fg="white", padx=14, pady=8, radius=6).pack(side=tk.LEFT, padx=8)
+
+        # 主题
+        tk.Label(frame, text="主题:", font=("微软雅黑", 11), bg=CARD_BG, fg=TEXT_PRIMARY).pack(anchor="w")
+        self.subject_entry = tk.Entry(frame, font=("微软雅黑", 11))
+        self.subject_entry.pack(fill=tk.X, pady=(4,8))
+
+        # 正文
+        tk.Label(frame, text="正文:", font=("微软雅黑", 11), bg=CARD_BG, fg=TEXT_PRIMARY).pack(anchor="w")
+        # 增大正文高度并允许垂直扩展
+        self.body_text = tk.Text(frame, font=("微软雅黑", 11), height=20, wrap="word")
+        self.body_text.pack(fill=tk.BOTH, expand=True, pady=(4,8))
+
+    def _send_to_recipient(self, recipient_user_id, recipient_email, subject, body, try_send=False):
+        # 调用客户端方法发送邮件（服务器保存记录并可尝试发送）
+        return self.client.send_email(
+            sender_id=self.admin_user.get('id'),
+            recipient_user_id=recipient_user_id,
+            recipient_email=recipient_email,
+            subject=subject,
+            body=body,
+            try_send=try_send
+        )
+
+    def send_and_try(self):
+        subject = self.subject_entry.get().strip()
+        body = self.body_text.get("1.0", tk.END).strip()
+        if not subject and not body:
+            messagebox.showwarning("警告", "主题或正文不能为空")
+            return
+        # 如果没有选中用户，则发送给所有用户（通过查询所有用户并逐个调用发送）
+        if not self.selected_user_ids and not self.selected_emails:
+            users = self.client.get_all_users()
+            count = 0
+            for u in users:
+                email = u.get('email')
+                uid = u.get('id')
+                if email:
+                    self._send_to_recipient(uid, email, subject, body, try_send=True)
+                    count += 1
+            messagebox.showinfo("完成", f"已向 {count} 位用户发送/保存邮件记录（详见服务器记录）。")
+            self.window.destroy()
+            return
+
+        # 向选中用户发送
+        success_count = 0
+        for uid in self.selected_user_ids:
+            # 获取用户详细信息以取得邮箱
+            user = self.client.get_user_info(uid)
+            recipient_email = user.get('email') if user else None
+            ok = self._send_to_recipient(uid, recipient_email, subject, body, try_send=True)
+            if ok:
+                success_count += 1
+        # 向直接选中邮箱发送（如果有）
+        for em in self.selected_emails:
+            ok = self._send_to_recipient(None, em, subject, body, try_send=True)
+            if ok:
+                success_count += 1
+
+        messagebox.showinfo("完成", f"已向 {success_count} 个目标发送/保存邮件记录。")
+        self.window.destroy()
+
+    def save_draft(self):
+        subject = self.subject_entry.get().strip()
+        body = self.body_text.get("1.0", tk.END).strip()
+        if not subject and not body:
+            messagebox.showwarning("警告", "主题或正文不能为空")
+            return
+        # 保存草稿（不尝试发送）
+        if not self.selected_user_ids and not self.selected_emails:
+            users = self.client.get_all_users()
+            count = 0
+            for u in users:
+                email = u.get('email')
+                uid = u.get('id')
+                if email:
+                    self._send_to_recipient(uid, email, subject, body, try_send=False)
+                    count += 1
+            messagebox.showinfo("完成", f"已为 {count} 位用户保存邮件草稿。")
+            self.window.destroy()
+            return
+
+        for uid in self.selected_user_ids:
+            user = self.client.get_user_info(uid)
+            recipient_email = user.get('email') if user else None
+            self._send_to_recipient(uid, recipient_email, subject, body, try_send=False)
+        for em in self.selected_emails:
+            self._send_to_recipient(None, em, subject, body, try_send=False)
+        messagebox.showinfo("完成", "草稿已保存。")
+        self.window.destroy()
 
 class ImportBooksDialog:
     """爬取图书对话框"""
@@ -1575,7 +2204,7 @@ class ImportBooksDialog:
         btn_frame = tk.Frame(form_frame)
         btn_frame.grid(row=11, column=0, columnspan=2, pady=20)
         
-        self.start_btn = tk.Button(
+        self.start_btn = create_rounded_button(
             btn_frame,
             text="开始爬取",
             command=self.start_import,
@@ -1583,11 +2212,12 @@ class ImportBooksDialog:
             bg="#4CAF50",
             fg="white",
             padx=20,
-            pady=5
+            pady=5,
+            radius=6
         )
         self.start_btn.pack(side=tk.LEFT, padx=5)
         
-        self.cancel_btn = tk.Button(
+        self.cancel_btn = create_rounded_button(
             btn_frame,
             text="取消",
             command=self.cancel,
@@ -1595,7 +2225,8 @@ class ImportBooksDialog:
             bg="#9E9E9E",
             fg="white",
             padx=20,
-            pady=5
+            pady=5,
+            radius=6
         )
         self.cancel_btn.pack(side=tk.LEFT, padx=5)
     
@@ -1709,4 +2340,115 @@ class ImportBooksDialog:
             if not messagebox.askyesno("确认", "爬取正在进行中，确定要取消吗？"):
                 return
         self.window.destroy()
+
+
+class BorrowEditDialog:
+    """编辑借阅记录对话框（管理员）"""
+
+    def __init__(self, parent, client, record):
+        self.client = client
+        self.record = record
+        self.window = tk.Toplevel(parent)
+        self.window.title("编辑借阅记录")
+        self.window.geometry("420x320")
+        self.window.resizable(False, False)
+        self.window.transient(parent)
+        self.window.grab_set()
+
+        self.create_widgets()
+        self.load_record()
+
+    def create_widgets(self):
+        frame = tk.Frame(self.window)
+        frame.pack(fill=tk.BOTH, expand=True, padx=16, pady=12)
+
+        tk.Label(frame, text="记录 ID:", font=("微软雅黑", 10)).grid(row=0, column=0, sticky="e", pady=6)
+        self.id_label = tk.Label(frame, text=str(self.record.get('id', '')), font=("微软雅黑", 10), fg="gray")
+        self.id_label.grid(row=0, column=1, sticky="w", pady=6)
+
+        tk.Label(frame, text="用户名:", font=("微软雅黑", 10)).grid(row=1, column=0, sticky="e", pady=6)
+        user_display = self.record.get('username') or self.record.get('user_name') or ''
+        self.user_label = tk.Label(frame, text=str(user_display), font=("微软雅黑", 10), fg="gray")
+        self.user_label.grid(row=1, column=1, sticky="w", pady=6)
+
+        tk.Label(frame, text="书名:", font=("微软雅黑", 10)).grid(row=2, column=0, sticky="e", pady=6)
+        self.title_label = tk.Label(frame, text=str(self.record.get('title','')), font=("微软雅黑", 10), fg="gray")
+        self.title_label.grid(row=2, column=1, sticky="w", pady=6)
+
+        tk.Label(frame, text="状态:", font=("微软雅黑", 10)).grid(row=3, column=0, sticky="e", pady=6)
+        self.status_var = tk.StringVar()
+        self.status_cb = ttk.Combobox(frame, textvariable=self.status_var, values=['borrowed', 'returned', 'overdue'], state='readonly', width=20)
+        self.status_cb.grid(row=3, column=1, sticky="w", pady=6)
+
+        tk.Label(frame, text="应还日期 (YYYY-MM-DD):", font=("微软雅黑", 10)).grid(row=4, column=0, sticky="e", pady=6)
+        self.due_entry = tk.Entry(frame, font=("微软雅黑", 10), width=22)
+        self.due_entry.grid(row=4, column=1, sticky="w", pady=6)
+
+        tk.Label(frame, text="归还日期 (YYYY-MM-DD):", font=("微软雅黑", 10)).grid(row=5, column=0, sticky="e", pady=6)
+        self.return_entry = tk.Entry(frame, font=("微软雅黑", 10), width=22)
+        self.return_entry.grid(row=5, column=1, sticky="w", pady=6)
+
+        tk.Label(frame, text="罚款金额:", font=("微软雅黑", 10)).grid(row=6, column=0, sticky="e", pady=6)
+        self.fine_entry = tk.Entry(frame, font=("微软雅黑", 10), width=22)
+        self.fine_entry.grid(row=6, column=1, sticky="w", pady=6)
+
+        btn_frame = tk.Frame(self.window)
+        btn_frame.pack(pady=12)
+        create_rounded_button(
+            btn_frame,
+            text="保存",
+            command=self.save,
+            font=("微软雅黑", 10),
+            bg=SUCCESS_COLOR,
+            fg="white",
+            padx=18,
+            pady=6,
+            radius=6
+        ).pack(side=tk.LEFT, padx=8)
+        create_rounded_button(
+            btn_frame,
+            text="取消",
+            command=self.window.destroy,
+            font=("微软雅黑", 10),
+            bg=PRIMARY_COLOR,
+            fg="white",
+            padx=18,
+            pady=6,
+            radius=6
+        ).pack(side=tk.LEFT, padx=8)
+
+    def load_record(self):
+        """填充当前记录到字段"""
+        self.status_var.set(self.record.get('status', ''))
+        due = self.record.get('due_date') or ''
+        return_d = self.record.get('return_date') or ''
+        self.due_entry.delete(0, tk.END)
+        self.due_entry.insert(0, due)
+        self.return_entry.delete(0, tk.END)
+        self.return_entry.insert(0, return_d)
+        fine = str(self.record.get('fine_amount')) if self.record.get('fine_amount') is not None else ''
+        self.fine_entry.delete(0, tk.END)
+        self.fine_entry.insert(0, fine)
+
+    def save(self):
+        """保存修改并调用客户端接口"""
+        record_id = self.record.get('id')
+        status = self.status_var.get() or None
+        due_date = self.due_entry.get().strip() or None
+        return_date = self.return_entry.get().strip() or None
+        fine_text = self.fine_entry.get().strip()
+        fine = None
+        if fine_text:
+            try:
+                fine = float(fine_text)
+            except Exception:
+                messagebox.showwarning("警告", "罚款金额应为数字")
+                return
+
+        success = self.client.update_borrow(record_id, status=status, due_date=due_date, return_date=return_date, fine_amount=fine)
+        if success:
+            messagebox.showinfo("成功", "借阅记录已更新")
+            self.window.destroy()
+        else:
+            messagebox.showerror("错误", "更新失败")
 

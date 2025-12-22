@@ -9,7 +9,7 @@ import struct
 from datetime import datetime, date
 from decimal import Decimal
 from database import Database
-from models import UserModel, BookModel, BorrowModel
+from models import UserModel, BookModel, BorrowModel, EmailModel
 from openlibrary_import import OpenLibraryImporter
 
 
@@ -69,12 +69,20 @@ class LibraryServer:
                 return self.handle_delete_book(data)
             elif action == 'get_all_borrows':
                 return self.handle_get_all_borrows(data)
+            elif action == 'admin_update_borrow':
+                return self.handle_admin_update_borrow(data)
             elif action == 'get_statistics':
                 return self.handle_get_statistics(data)
             elif action == 'get_categories':
                 return self.handle_get_categories(data)
             elif action == 'get_all_users':
                 return self.handle_get_all_users(data)
+            elif action == 'send_email':
+                return self.handle_send_email(data)
+            elif action == 'get_all_emails':
+                return self.handle_get_all_emails(data)
+            elif action == 'get_user_emails':
+                return self.handle_get_user_emails(data)
             elif action == 'admin_update_user':
                 return self.handle_admin_update_user(data)
             elif action == 'admin_add_user':
@@ -208,6 +216,27 @@ class LibraryServer:
         """获取所有借阅记录（管理员）"""
         borrows = self.borrow_model.get_all_borrows(data.get('status'))
         return {'success': True, 'data': borrows}
+
+    def handle_admin_update_borrow(self, data: dict) -> dict:
+        """管理员更新借阅记录"""
+        try:
+            record_id = data.get('record_id')
+            if not record_id:
+                return {'success': False, 'message': '缺少 record_id'}
+            status = data.get('status')
+            due_date = data.get('due_date')
+            return_date = data.get('return_date')
+            fine_amount = data.get('fine_amount')
+            success = self.borrow_model.update_borrow(
+                record_id,
+                status=status,
+                due_date=due_date,
+                return_date=return_date,
+                fine_amount=fine_amount
+            )
+            return {'success': success, 'message': '更新成功' if success else '更新失败'}
+        except Exception as e:
+            return {'success': False, 'message': f'更新借阅记录失败: {str(e)}'}
     
     def handle_get_statistics(self, data: dict) -> dict:
         """获取统计信息（管理员）"""
@@ -223,6 +252,42 @@ class LibraryServer:
         """获取所有用户（管理员）"""
         users = self.user_model.get_all_users()
         return {'success': True, 'data': users}
+    
+    def handle_send_email(self, data: dict) -> dict:
+        """管理员发送邮件（支持按用户id或直接按邮箱地址）"""
+        try:
+            sender_id = data.get('sender_id')
+            recipient_user_id = data.get('recipient_user_id')  # 可选
+            recipient_email = data.get('recipient_email')      # 可选
+            subject = data.get('subject', '')
+            body = data.get('body', '')
+            try_send = data.get('try_send', False)
+            email_model = EmailModel(self.db)
+            success = email_model.send_email(sender_id, recipient_user_id, recipient_email, subject, body, try_send=try_send)
+            return {'success': success, 'message': '发送成功' if success else '发送失败'}
+        except Exception as e:
+            return {'success': False, 'message': f'发送邮件失败: {str(e)}'}
+
+    def handle_get_all_emails(self, data: dict) -> dict:
+        """获取所有邮件记录（管理员）"""
+        try:
+            email_model = EmailModel(self.db)
+            rows = email_model.get_all_emails()
+            return {'success': True, 'data': rows}
+        except Exception as e:
+            return {'success': False, 'message': f'获取邮件记录失败: {str(e)}'}
+
+    def handle_get_user_emails(self, data: dict) -> dict:
+        """获取发给指定用户的邮件记录"""
+        try:
+            user_id = data.get('user_id')
+            if not user_id:
+                return {'success': False, 'message': '缺少 user_id'}
+            email_model = EmailModel(self.db)
+            rows = email_model.get_emails_for_user(user_id)
+            return {'success': True, 'data': rows}
+        except Exception as e:
+            return {'success': False, 'message': f'获取用户邮件失败: {str(e)}'}
     
     def handle_admin_update_user(self, data: dict) -> dict:
         """管理员更新用户信息"""

@@ -230,6 +230,21 @@ class NetworkClient:
         except Exception as e:
             print(f"获取借阅记录异常: {e}")
             return []
+
+    def update_borrow(self, record_id: int, status: str = None, due_date: str = None,
+                      return_date: str = None, fine_amount: float = None) -> bool:
+        """管理员更新借阅记录"""
+        data = {'record_id': record_id}
+        if status is not None:
+            data['status'] = status
+        if due_date is not None:
+            data['due_date'] = due_date
+        if return_date is not None:
+            data['return_date'] = return_date
+        if fine_amount is not None:
+            data['fine_amount'] = fine_amount
+        response = self.send_request('admin_update_borrow', data)
+        return response.get('success', False)
     
     def get_statistics(self) -> Optional[Dict]:
         """获取统计信息"""
@@ -255,6 +270,34 @@ class NetworkClient:
         except Exception as e:
             print(f"获取用户列表异常: {e}")
             return []
+
+    def send_email(self, sender_id: int, recipient_user_id: Optional[int], recipient_email: Optional[str], subject: str, body: str, try_send: bool = False) -> bool:
+        """管理员发送邮件（向服务器请求保存并可尝试发送）"""
+        payload = {
+            'sender_id': sender_id,
+            'recipient_user_id': recipient_user_id,
+            'recipient_email': recipient_email,
+            'subject': subject,
+            'body': body,
+            'try_send': try_send
+        }
+        response = self.send_request('send_email', payload)
+        return response.get('success', False)
+
+    def get_all_emails(self) -> List[Dict]:
+        """获取所有邮件记录（管理员）"""
+        response = self.send_request('get_all_emails', {})
+        if response and response.get('success'):
+            return response.get('data', []) if isinstance(response.get('data', []), list) else []
+        return []
+
+    def get_user_emails(self, user_id: int) -> List[Dict]:
+        """获取指定用户的邮件记录（供客户端显示）"""
+        response = self.send_request('get_user_emails', {'user_id': user_id})
+        if response and response.get('success'):
+            data = response.get('data', [])
+            return data if isinstance(data, list) else []
+        return []
     
     def admin_update_user(self, user_id: int, name: str = None, email: str = None,
                          phone: str = None, role: str = None, password: str = None,

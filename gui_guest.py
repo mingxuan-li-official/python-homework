@@ -12,6 +12,7 @@ from ui_theme import (
     CARD_BG,
     TEXT_PRIMARY,
     TEXT_SECONDARY,
+    create_rounded_button,
 )
 
 class GuestWindow:
@@ -39,17 +40,16 @@ class GuestWindow:
             fg=TEXT_PRIMARY,
         ).pack(side=tk.LEFT, padx=15, pady=12)
         
-        tk.Button(
+        create_rounded_button(
             toolbar,
             text="登录",
             command=self.show_login,
             font=("微软雅黑", 10),
             bg=PRIMARY_COLOR,
             fg="white",
-            bd=0,
             padx=10,
             pady=6,
-            cursor="hand2",
+            radius=6
         ).pack(side=tk.RIGHT, padx=15, pady=10)
         
         # 提示信息
@@ -76,28 +76,28 @@ class GuestWindow:
         self.search_entry.pack(side=tk.LEFT, padx=5)
         self.search_entry.bind('<Return>', lambda e: self.search_books())
         
-        tk.Button(
+        create_rounded_button(
             search_frame,
             text="搜索",
             command=self.search_books,
             font=("微软雅黑", 10),
             bg=QUERY_COLOR,
             fg="white",
-            bd=0,
             padx=15,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(
+        create_rounded_button(
             search_frame,
             text="刷新",
             command=self.refresh_books,
             font=("微软雅黑", 10),
             bg=PRIMARY_COLOR,
             fg="white",
-            bd=0,
             padx=15,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
         
         # 图书列表
@@ -124,20 +124,20 @@ class GuestWindow:
         btn_frame = tk.Frame(books_frame, bg=CARD_BG)
         btn_frame.pack(pady=10)
         
-        tk.Button(
+        create_rounded_button(
             btn_frame,
             text="查看详情",
             command=self.view_book_detail,
             font=("微软雅黑", 10),
             bg=PRIMARY_COLOR,
             fg="white",
-            bd=0,
             padx=15,
-            pady=5
+            pady=5,
+            radius=6
         ).pack(side=tk.LEFT, padx=5)
         
         # 借阅按钮（禁用状态，显示提示）
-        borrow_btn = tk.Button(
+        borrow_btn = create_rounded_button(
             btn_frame,
             text="借阅（需登录）",
             command=self.show_login_prompt,
@@ -146,7 +146,7 @@ class GuestWindow:
             fg="white",
             padx=15,
             pady=5,
-            state=tk.DISABLED
+            radius=6
         )
         borrow_btn.pack(side=tk.LEFT, padx=5)
     
@@ -305,16 +305,15 @@ class BookDetailWindow:
         )
         tip.pack(pady=(4, 8))
 
-        tk.Button(
+        create_rounded_button(
             card,
             text="关闭",
             command=self.window.destroy,
             font=("微软雅黑", 10, "bold"),
             bg=PRIMARY_COLOR,
             fg="white",
-            bd=0,
             padx=20,
             pady=8,
-            cursor="hand2",
+            radius=6
         ).pack(pady=10)
 
